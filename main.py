@@ -1,3 +1,18 @@
+from flask import Flask
+from threading import Thread
+
+app = Flask('')
+
+@app.route('/')
+def main():
+    return '<meta http-equiv="refresh" content="0; URL=https://phantom.is-a.dev/support"/>'
+
+def run():
+    app.run(host="0.0.0.0", port=8080)
+
+def keep_alive():
+    server = Thread(target=run)
+    server.start()
 import os
 import sys
 import json
@@ -11,7 +26,7 @@ status = "online" #online/dnd/idle
 GUILD_ID = os.getenv("GUILD_ID")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 SELF_MUTE = True
-SELF_DEAF = False
+SELF_DEAF = True
 
 usertoken = os.getenv("TOKEN")
 if not usertoken:
