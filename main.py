@@ -1,29 +1,17 @@
-from flask import Flask, render_template
-from threading import Thread
+import os
+import sys
+import json
+import time
+import requests
+import websocket
+from keep_alive import keep_alive
 
-app = Flask(__name__)
-
-@app.route('/')
-def index():
-    return '''<body style="margin: 0; padding: 0;">
-    <iframe width="100%" height="100%" src="https://axocoder.vercel.app/" frameborder="0" allowfullscreen></iframe>
-  </body>'''
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-def keep_alive():  
-    t = Thread(target=run)
-    t.start()
-
-keep_alive()
-print("Server Running Because of Axo")
 status = "online" #online/dnd/idle
 
 GUILD_ID = os.getenv("GUILD_ID")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 SELF_MUTE = True
-SELF_DEAF = True
+SELF_DEAF = False
 
 usertoken = os.getenv("TOKEN")
 if not usertoken:
