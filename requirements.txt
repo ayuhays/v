@@ -1,3 +1,4 @@
 requests
 websocket-client
 Flask
+discord.py==1.7.3
