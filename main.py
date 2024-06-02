@@ -1,69 +1,53 @@
 import os
-import discord
-from discord.ext import tasks, commands
+import sys
+import json
+import time
+import requests
+import websocket
+from keep_alive import keep_alive
 
-status = discord.Status.online  # online/dnd/idle
+status = "online" #online/dnd/idle
 
 GUILD_ID = os.getenv("GUILD_ID")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 SELF_MUTE = True
 SELF_DEAF = True
 
-TOKEN = os.getenv("TOKEN")
-if not TOKEN:
-    print("[ERROR] Please add a token inside Secrets.")
-    exit()
+usertoken = os.getenv("TOKEN")
+if not usertoken:
+  print("[ERROR] Please add a token inside Secrets.")
+  sys.exit()
 
-intents = discord.Intents.default()
-intents.voice_states = True
-intents.presences = True
+headers = {"Authorization": usertoken, "Content-Type": "application/json"}
 
-bot = commands.Bot(command_prefix='!', intents=intents)
-bot.remove_command('help')
+validate = requests.get('https://canary.discordapp.com/api/v9/users/@me', headers=headers)
+if validate.status_code != 200:
+  print("[ERROR] Your token might be invalid. Please check it again.")
+  sys.exit()
 
+userinfo = requests.get('https://canary.discordapp.com/api/v9/users/@me', headers=headers).json()
+username = userinfo["username"]
+discriminator = userinfo["discriminator"]
+userid = userinfo["id"]
 
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user.name} ({bot.user.id})')
-    await joiner()
+def joiner(token, status):
+    ws = websocket.WebSocket()
+    ws.connect('wss://gateway.discord.gg/?v=9&encoding=json')
+    start = json.loads(ws.recv())
+    heartbeat = start['d']['heartbeat_interval']
+    auth = {"op": 2,"d": {"token": token,"properties": {"$os": "Windows 10","$browser": "Google Chrome","$device": "Windows"},"presence": {"status": status,"afk": False}},"s": None,"t": None}
+    vc = {"op": 4,"d": {"guild_id": GUILD_ID,"channel_id": CHANNEL_ID,"self_mute": SELF_MUTE,"self_deaf": SELF_DEAF}}
+    ws.send(json.dumps(auth))
+    ws.send(json.dumps(vc))
+    time.sleep(heartbeat / 1000)
+    ws.send(json.dumps({"op": 1,"d": None}))
 
+def run_joiner():
+  os.system("clear")
+  print(f"Logged in as {username}#{discriminator} ({userid}).")
+  while True:
+    joiner(usertoken, status)
+    time.sleep(30)
 
-async def joiner():
-    guild = bot.get_guild(int(GUILD_ID))
-    if not guild:
-        print("[ERROR] Bot is not in the specified guild.")
-        return
-
-    channel = guild.get_channel(int(CHANNEL_ID))
-    if not channel:
-        print("[ERROR] Channel not found.")
-        return
-
-    voice_client = await channel.connect()
-    await voice_client.disconnect()
-
-
-@tasks.loop(seconds=30)
-async def keep_running():
-    await joiner()
-
-
-@bot.event
-async def on_disconnect():
-    await bot.close()
-
-
-@bot.event
-async def on_error(event, *args, **kwargs):
-    print(f'Error in {event}: {args[0]}')
-    await bot.close()
-
-
-@bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.CommandNotFound):
-        pass  # Ignore CommandNotFound errors
-
-
-keep_running.start()
-bot.run(TOKEN)
+keep_alive()
+run_joiner()
